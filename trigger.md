@@ -1,79 +1,51 @@
-# Add GitHub Webhook Trigger to Jenkins
 
-## Prerequisites
-- Jenkins running on EC2 or Docker
-- Jenkins reachable from the internet (e.g. `http://<EC2-PUBLIC-IP>:8080`)
-- Repo with Jenkinsfile and terraform script 
-- Github and git plugins
+# **Requirements**
+- Security Group:
 
----
+**Inbound Rules**
+- Custom TCP: port 8080 for jenkins
+- SSH: 22 to SSH into our EC2
 
+**Outbound Rules** 
+- Leave default 
+____
+## **VPC**
+- Availability Zone: 1
+- Public & Private subnet: 1
+- Customize subnets CIDR blocks:
+	- Public `10.81.1.0/24`
+	- Private `10.81.11.0/24`
+- NAT Gateway: none
+___
+## **EC2 for Jenkins**
+- At least a T3 Medium, 4GB RAM and up according to your needs
+- Make sure Auto-assign public IP is set to `Enable`
+- Provision at least 30-40 GB storage (EBS)
+- Insert startup script from `user-data.sh` into Advanced section
+- Startup script handles most of the installs including terraform, java 21, and plugins.
+- While in AWS, we also need to make sure we have an IAM user we can use for AWS Credentials in Jenkins.
+- IAM access key & IAM secret key is needed. Keep them safe and hidden, will need them Jenkins.
+___
+## **Jenkins**
 
-## Jenkins Config
+To access Jemnkins: EC2 publics DNS/ ipv4 address:8080
 
-### Make a pipeline 
-
-1. Jenkins dashboard → New Item
-2. Name it
-3. Select: Pipeline
-4. Click OK
-
-### Enable GitHub Trigger 
-
-In job configuration:
-
-- Triggers → GitHub hook trigger for GITScm polling
-
-### Configure
-
-- Definition: Pipeline script from SCM
-- SCM: Git
-- Add HTTP repo URL
-- Branch:
-  `*/main`
-- Script Path:
-  Jenkinsfile
-
-
-
-
-Save pipeline
-
----
-
-## Add GitHub Webhook 
-Go to Github
-
-Repository → Settings → Webhooks → Add webhook
-
-- Payload URL:
-  `http://<YOUR-JENKINS-URL>/github-webhook/`
-
-- Content type:
-  `application/json`
-
-- Events:
-  Just the push event
-
-Save
-
----
-
-## Test
-
-Option A:
-```bash
-git commit --allow-empty -m "test webhook"
-git push origin main
-```
-
-Option B:
-- GitHub → Webhook → Recent Deliveries
-- Redeliver
-
----
-
-
+- SSH into EC2 and cat into secrets folder to get initial admin password:
+`sudo cat /var/lib/jenkins/secrets/initialAdminPassword`
+- Add Credentials: Create an ID and add IAM access key and IAM Secret key
+- Set up pipeline in Jenkins
+    - Select GitHub hook trigger for GITScm Polling
+    - Pipeline script from SCM
+    - SCM - GIT
+    - Repository URL: https://github.com/yearninlearnin/atarashii-jenkins-testo.git
+    - Branch: */main
+    - Script Path: Jenkinsfile
+## **Webhook**
+- Set up webhook in github
+- Payload URL: http://jenkinsURL/github-webhook/
+- Content type : application/json
+- Add webhook
+___
 
 
 
@@ -149,3 +121,5 @@ Example (simplified):
     "message": "update"
   }
 }
+```
+
