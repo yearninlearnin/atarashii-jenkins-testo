@@ -4,6 +4,7 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION    = 'us-west-1'
         TF_IN_AUTOMATION      = 'true'
+        SNYK_ORG  = credentials('snyk-org-slug')
         
     }
     
@@ -13,11 +14,44 @@ pipeline {
                 checkout scm
             }
         }
+        // introducing synk code into jenkins from charles-snyk
+        stage('Snyk IaC Scan Test') {
+            steps {
+                withCredentials([string(credentialsId: 'snyk-api-token-string', variable: 'SNYK_TOKEN')]) {
+                    sh '''
+                        export PATH=$PATH:/var/lib/jenkins/tools/io.snyk.jenkins.tools.SnykInstallation/snyk
+                        snyk-linux auth $SNYK_TOKEN
+                        snyk-linux iac test --org=$SNYK_ORG --severity-threshold=high || true
+                    '''
+                }
+            }
+        }        
+        stage('Snyk IaC Scan Monitor') {
+            steps {
+                snykSecurity(
+                    snykInstallation: 'snyk',
+                    snykTokenId: 'snyk-api-token',
+                    additionalArguments: '--iac --report --org=$SNYK_ORG --severity-threshold=high',
+                    failOnIssues: true,
+                    monitorProjectOnBuild: false
+                )
+            }
+        }
+
 
         stage('Terraform Init') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'fugakujenkins']]) {
                     sh 'terraform init'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',credentialsId: 'fugakujenkins']]) {
+                    sh 'terraform plan'
                 }
             }
         }
